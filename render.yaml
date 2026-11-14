@@ -1,0 +1,17 @@
+# Render blueprint — Sodam Boba & Poke Cafe (server replica)
+# Free tier: $0. Sleeps after 15 min idle; first load after sleep takes
+# ~30-60s. Do NOT change plan to Starter without Frank's explicit approval.
+services:
+  - type: web
+    name: sodam-boba-poke-cafe
+    env: node
+    plan: free
+    buildCommand: python3 build.py
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Owner picks the real staff password before going live. The test
+      # password below is the one Frank was already given for the demo.
+      - key: STAFF_PASSWORD
+        value: sodam-staff-2026

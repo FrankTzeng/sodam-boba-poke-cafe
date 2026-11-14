@@ -1,0 +1,1 @@
+{"description":"Sodam Boba & Poke Cafe — public site with a real shared backend (pickup orders, staff board, regulars). Pay at pickup only.","engines":{"node":">=18"},"license":"UNLICENSED","main":"server.js","name":"sodam-boba-poke-cafe-server","private":true,"scripts":{"build":"python3 build.py","start":"node server.js"},"version":"1.0.0"}
