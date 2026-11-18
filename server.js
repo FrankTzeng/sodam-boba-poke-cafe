@@ -40,6 +40,21 @@ const STAFF_PASSWORD = process.env.STAFF_PASSWORD || 'sodam-staff-2026';
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 const menu = JSON.parse(fs.readFileSync(path.join(__dirname, 'menu.json'), 'utf8'));
+
+// Hero video: stored in the repo as base64 text parts under video/ (the
+// repo sync is text-only); decoded once at startup and served from memory.
+let HERO_VIDEO = null;
+try {
+  const vdir = path.join(__dirname, 'video');
+  const parts = fs.readdirSync(vdir).filter((f) => f.startsWith('hero.mp4.b64.part')).sort();
+  if (parts.length) {
+    const b64 = parts.map((f) => fs.readFileSync(path.join(vdir, f), 'utf8')).join('');
+    HERO_VIDEO = Buffer.from(b64, 'base64');
+    console.log('Hero video loaded: ' + HERO_VIDEO.length + ' bytes from ' + parts.length + ' parts');
+  }
+} catch (e) {
+  console.log('Hero video not loaded: ' + (e && e.message || e));
+}
 const MENU_BY_NAME = new Map(menu.items.map((it) => [it.name, it]));
 const MENU_BY_ID = new Map(menu.items.map((it) => [it.id, it]));
 
@@ -295,6 +310,46 @@ async function handleApi(req, res, url) {
   return send(res, 404, { error: 'Not found.' });
 }
 
+// ------------------------------------------------------------ hero video ----
+function serveHero(req, res) {
+  if (!HERO_VIDEO) return sendText(res, 404, 'Not found');
+  const total = HERO_VIDEO.length;
+  const headOnly = req.method === 'HEAD';
+  const range = req.headers.range;
+  if (range) {
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (m) {
+      let start, end;
+      if (m[1] === '' && m[2] !== '') {
+        start = Math.max(0, total - parseInt(m[2], 10));
+        end = total - 1;
+      } else {
+        start = m[1] === '' ? 0 : parseInt(m[1], 10);
+        end = m[2] === '' ? total - 1 : Math.min(parseInt(m[2], 10), total - 1);
+      }
+      if (start > end || start >= total) {
+        res.writeHead(416, { 'Content-Range': 'bytes */' + total });
+        return res.end();
+      }
+      res.writeHead(206, {
+        'Content-Type': 'video/mp4',
+        'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': end - start + 1,
+        'Cache-Control': 'public, max-age=3600',
+      });
+      return res.end(headOnly ? undefined : HERO_VIDEO.subarray(start, end + 1));
+    }
+  }
+  res.writeHead(200, {
+    'Content-Type': 'video/mp4',
+    'Accept-Ranges': 'bytes',
+    'Content-Length': total,
+    'Cache-Control': 'public, max-age=3600',
+  });
+  res.end(headOnly ? undefined : HERO_VIDEO);
+}
+
 // ----------------------------------------------------------- static files ----
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -317,6 +372,7 @@ function serveStatic(req, res, url) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/healthz') return sendText(res, 200, 'ok');
+  if (url.pathname === '/hero.mp4') return serveHero(req, res);
   if (url.pathname.startsWith('/api/')) {
     handleApi(req, res, url).catch((e) => send(res, 500, { error: String(e && e.message || e) }));
     return;
