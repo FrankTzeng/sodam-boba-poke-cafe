@@ -15,3 +15,8 @@ services:
       # password below is the one Frank was already given for the demo.
       - key: STAFF_PASSWORD
         value: sodam-staff-2026
+      # Sales tax rate in basis points (1080 = 10.80%), the cafe's
+      # Toast-effective rate. Read by server.js (TAX_RATE_BPS) and
+      # surfaced to the checkout via GET /api/config.
+      - key: TAX_RATE_BPS
+        value: 1080
