@@ -32,6 +32,17 @@ CANS = ["can73-sprite.jpg", "can74-coke.jpg", "can75-coke-zero.jpg"]
 # The built page is ~16 MB, too large for one API upload, so it is stored in
 # the repo as public/index.html.part0..N — join them back if needed.
 if not os.path.exists(SRC):
+    # Binaries (favicon PNGs, og-image.jpg) travel as .b64 text because the
+    # repo sync is UTF-8 text only — restore them here on the host build.
+    import glob as _glob_b64
+    for _b64 in sorted(_glob_b64.glob(os.path.join(BASE, "public", "*.b64"))):
+        _target = _b64[:-4]
+        if not os.path.exists(_target):
+            with open(_b64, "r", encoding="ascii") as _f:
+                _raw = base64.b64decode(_f.read())
+            with open(_target, "wb") as _f:
+                _f.write(_raw)
+            print(f"decoded {_b64} -> {_target} ({len(_raw)} bytes)")
     if os.path.exists(DST):
         print("source preview not present (host build) — keeping existing public/index.html")
         sys.exit(0)
